@@ -1,0 +1,99 @@
+import { Boxes, Github, Twitter, Sun, Moon } from "lucide-react";
+import { Button } from "./ui/button";
+
+type NavKey = "home" | "gallery" | "detail" | "runs" | "pipeline" | "pricing" | "settings";
+
+// [Prep-02] 新增功能：主题切换按钮接入顶栏
+export function TopNav({ current, onNav, theme, onToggleTheme }: { current: NavKey; onNav: (k: NavKey) => void; theme: "dark" | "light"; onToggleTheme: () => void }) {
+  const items: { key: NavKey; label: string }[] = [
+    { key: "gallery", label: "商店" },
+    { key: "runs", label: "运行记录" },
+    { key: "pipeline", label: "编排" },
+    { key: "pricing", label: "定价" },
+  ];
+  return (
+    <header className="sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur">
+      <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-6">
+        <button onClick={() => onNav("home")} className="flex items-center gap-2 hover:opacity-80">
+          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground">
+            <Boxes className="h-4 w-4" />
+          </div>
+          <span className="text-[15px]">AgentHub</span>
+        </button>
+        <nav className="hidden items-center gap-1 md:flex">
+          {items.map((it) => (
+            <button
+              key={it.key}
+              onClick={() => onNav(it.key)}
+              className={`rounded-md px-3 py-1.5 text-[14px] transition-colors hover:bg-accent ${
+                current === it.key ? "text-foreground" : "text-muted-foreground"
+              }`}
+            >
+              {it.label}
+            </button>
+          ))}
+        </nav>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onToggleTheme}
+            aria-label={theme === "dark" ? "切换到浅色模式" : "切换到深色模式"}
+            title={theme === "dark" ? "切换到浅色模式" : "切换到深色模式"}
+          >
+            {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => onNav("settings")}>设置</Button>
+          <Button size="sm" onClick={() => onNav("gallery")}>登录</Button>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+export function Footer() {
+  const cols = [
+    { title: "产品", items: ["Agent 商店", "Playground", "编排 Pipeline", "运行记录"] },
+    { title: "资源", items: ["开发者文档", "API 参考", "示例库", "更新日志"] },
+    { title: "公司", items: ["关于我们", "招聘", "博客", "联系方式"] },
+    { title: "法律", items: ["服务条款", "隐私政策", "使用规范", "数据处理"] },
+  ];
+  return (
+    <footer className="mt-16 border-t border-border bg-background">
+      <div className="mx-auto max-w-7xl px-6 py-12">
+        <div className="grid grid-cols-2 gap-8 md:grid-cols-5">
+          <div className="col-span-2">
+            <div className="flex items-center gap-2">
+              <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground">
+                <Boxes className="h-4 w-4" />
+              </div>
+              <span className="text-[15px]">AgentHub</span>
+            </div>
+            <p className="mt-3 max-w-xs text-[13px] text-muted-foreground">
+              AI Agent 商店与 Playground 平台，让每个开发者都能快速接入并编排智能体。
+            </p>
+            <div className="mt-4 flex gap-2">
+              <Button variant="ghost" size="icon"><Github className="h-4 w-4" /></Button>
+              <Button variant="ghost" size="icon"><Twitter className="h-4 w-4" /></Button>
+            </div>
+          </div>
+          {cols.map((c) => (
+            <div key={c.title}>
+              <div className="text-[13px] text-foreground">{c.title}</div>
+              <ul className="mt-3 space-y-2">
+                {c.items.map((i) => (
+                  <li key={i} className="text-[13px] text-muted-foreground hover:text-foreground cursor-pointer">{i}</li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+        <div className="mt-10 border-t border-border pt-6 text-[12px] text-muted-foreground">
+          © 2026 AgentHub. 保留所有权利。
+        </div>
+      </div>
+    </footer>
+  );
+}
+
+export type { NavKey };
