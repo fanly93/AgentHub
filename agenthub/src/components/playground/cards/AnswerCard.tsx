@@ -1,6 +1,7 @@
 "use client";
 
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface AnswerCardProps {
@@ -25,11 +26,13 @@ export function AnswerCard({ content, isStreaming }: AnswerCardProps) {
       <p className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
         最终答案
       </p>
-      <div className="prose prose-sm dark:prose-invert max-w-none">
-        <ReactMarkdown>{content}</ReactMarkdown>
-        {isStreaming && (
-          <span className="ml-0.5 animate-pulse text-foreground">▋</span>
-        )}
+      <div className="overflow-x-auto">
+        <div className="prose prose-sm dark:prose-invert max-w-none break-words">
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+          {isStreaming && (
+            <span className="ml-0.5 animate-pulse text-foreground">▋</span>
+          )}
+        </div>
       </div>
     </div>
   );

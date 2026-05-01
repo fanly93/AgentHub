@@ -1,3 +1,7 @@
+import type { ModelId } from "@/shared/schemas/playgroundResponse";
+
+export type AgentType = 'general' | 'deepresearch' | 'simple';
+
 export type Agent = {
   id: string;
   name: string;
@@ -10,6 +14,21 @@ export type Agent = {
   runs: number;
   rating: number;
   emoji?: string;
+  agentType: AgentType;
+  defaultModel?: ModelId;
+};
+
+export const CATEGORY_PROMPTS: Record<string, string> = {
+  '写作助手':   '你是一个专业的写作助手，擅长帮助用户改善文字表达、润色文章、撰写各类文体内容。请给出清晰、有条理的建议。',
+  '代码生成':   '你是一个专业的代码生成工具，擅长根据需求生成高质量、可运行的代码，并提供简洁的实现说明。',
+  '数据分析':   '你是一个专业的数据分析助手，擅长解读数据规律、提炼洞察，并给出可执行的行动建议。',
+  '图像理解':   '你是一个专业的图像理解助手，擅长描述和分析图像内容，提供精确的视觉信息解读。',
+  '客户支持':   '你是一个专业的客户支持助手，擅长耐心解答问题、处理用户反馈，始终保持友好和准确的态度。',
+  '翻译润色':   '你是一个专业的翻译和语言润色专家，擅长多语言互译，保持原文风格和语义准确性。',
+  '研究调研':   '你是一个专业的研究调研助手，擅长整合信息、总结文献，提供有据可查的深度见解。',
+  '运营营销':   '你是一个专业的运营营销助手，擅长撰写营销文案、策划活动方案，提供有效的用户增长建议。',
+  '教育辅导':   '你是一个专业的教育辅导助手，擅长以通俗易懂的方式解释复杂概念，帮助学习者掌握知识。',
+  '生产力工具': '你是一个专业的生产力助手，擅长任务分解、流程梳理，帮助用户高效完成工作目标。',
 };
 
 const categories = ['写作助手', '代码生成', '数据分析', '图像理解', '客户支持', '翻译润色', '研究调研', '运营营销', '教育辅导', '生产力工具'];
@@ -17,16 +36,16 @@ const providers = ['OpenAI', 'Anthropic', 'DashScope', 'Google', 'DeepSeek'];
 const caps = ['流式输出', '工具调用', '多模态', '长上下文', '函数调用', 'JSON 模式', '中文优化', '代码执行'];
 const authors = ['官方', '@linus', '@evan', '@mia', '@kai', '@yuki'];
 
-const names = [
+const simpleNames = [
   'CodeReviewer Pro', 'Notion 写作管家', '数据洞察助手', 'SQL 翻译官', '图像描述师',
   '客服 7×24', 'PR 摘要机', '研报速读', '小红书文案手', '会议纪要官',
   '论文翻译家', '简历优化师', '面试模拟器', '产品需求拆解', 'Bug 复现助理',
   '前端组件生成', '正则表达式师', 'API 文档生成', '邮件润色机', 'Excel 公式手',
-  '日报周报生成', '思维导图助手', '术语对照器', '播客纲要生成',
+  '日报周报生成', '思维导图助手',
 ];
 
-export const agents: Agent[] = names.map((name, i) => ({
-  id: `agent-${i + 1}`,
+const simpleAgents: Agent[] = simpleNames.map((name, i) => ({
+  id: `agent-${i + 3}`,
   name,
   author: authors[i % authors.length],
   category: categories[i % categories.length],
@@ -36,7 +55,42 @@ export const agents: Agent[] = names.map((name, i) => ({
   price: i % 4 === 0 ? '免费' : `$${(i % 5) * 2 + 2}/月`,
   runs: 1200 + i * 137,
   rating: 4.2 + (i % 8) * 0.1,
+  agentType: 'simple',
 }));
+
+export const agents: Agent[] = [
+  {
+    id: 'agent-general',
+    name: '通用智能助手',
+    author: '官方',
+    category: '生产力工具',
+    provider: 'Anthropic',
+    capabilities: ['流式输出', '工具调用', '函数调用', '长上下文', 'JSON 模式'],
+    description: '支持工具调用的通用智能助手，可联网搜索、计算、查天气、写文件，适合各类复杂任务。',
+    price: '免费',
+    runs: 8800,
+    rating: 4.9,
+    emoji: '🤖',
+    agentType: 'general',
+    defaultModel: 'deepseek-v4-flash',
+  },
+  {
+    id: 'agent-deepresearch',
+    name: '深度研究助手',
+    author: '官方',
+    category: '研究调研',
+    provider: 'DeepSeek',
+    capabilities: ['流式输出', '工具调用', '长上下文', '中文优化'],
+    description: '专业深度研究员，自动规划检索策略，执行多轮联网搜索，输出含执行摘要、主要发现、来源与参考、结论建议的结构化研究报告。',
+    price: '免费',
+    runs: 3200,
+    rating: 4.8,
+    emoji: '🔬',
+    agentType: 'deepresearch',
+    defaultModel: 'deepseek-v4-pro',
+  },
+  ...simpleAgents,
+];
 
 export const featuredAgents = agents.slice(0, 6);
 
