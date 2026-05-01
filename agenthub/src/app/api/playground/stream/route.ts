@@ -11,6 +11,7 @@ export const maxDuration = 60;
 const RequestSchema = z.object({
   model: ModelIdSchema,
   prompt: z.string().min(1).max(50000),
+  agentSystemPrompt: z.string().max(2000).optional(),
 });
 
 // ── System Prompt ─────────────────────────────────────────────────────────
@@ -48,7 +49,7 @@ export async function POST(req: Request): Promise<Response> {
   if (!parsed.success) {
     return errorResponse(400, "fatal", "请求参数错误，请检查 model 和 prompt 字段", "INVALID_REQUEST");
   }
-  const { model, prompt } = parsed.data;
+  const { model, prompt, agentSystemPrompt } = parsed.data;
 
   const headerKey = req.headers.get("X-Provider-Api-Key")?.trim();
   const apiKey = headerKey || ENV_KEY_MAP[model];
@@ -64,9 +65,13 @@ export async function POST(req: Request): Promise<Response> {
   }
 
   try {
+    const systemPrompt = agentSystemPrompt
+      ? `${agentSystemPrompt}\n\n${SYSTEM_PROMPT}`
+      : SYSTEM_PROMPT;
+
     const result = streamText({
       model: providerModel,
-      system: SYSTEM_PROMPT,
+      system: systemPrompt,
       prompt,
       onError: (error) => {
         const safeErr = error as { status?: number; statusCode?: number; message?: string };
