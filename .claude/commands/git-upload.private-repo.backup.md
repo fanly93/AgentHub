@@ -77,13 +77,13 @@ echo ${GITLAB_TOKEN:0:4}
 - **若 GITHUB_TOKEN 存在：**
 
 ```bash
-# 用当前目录名作为仓库名，创建公开仓库
+# 用当前目录名作为仓库名，创建私有仓库
 REPO_NAME=$(basename "$PWD")
 curl -s -X POST \
   -H "Authorization: token $GITHUB_TOKEN" \
   -H "Accept: application/vnd.github.v3+json" \
   https://api.github.com/user/repos \
-  -d "{\"name\":\"$REPO_NAME\",\"private\":false}" | grep -E '"html_url"|"ssh_url"|"clone_url"'
+  -d "{\"name\":\"$REPO_NAME\",\"private\":true}" | grep -E '"html_url"|"ssh_url"|"clone_url"'
 ```
 
 创建成功后自动设置 origin。
