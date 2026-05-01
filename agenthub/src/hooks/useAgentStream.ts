@@ -94,7 +94,7 @@ function reducer(state: AgentExecutionState, action: Action): AgentExecutionStat
 
 // ── Hook ───────────────────────────────────────────────────────────────────
 
-export function useAgentStream() {
+export function useAgentStream(route = "/api/agent/stream") {
   const [state, dispatch] = useReducer(reducer, initialState);
   const abortRef = useRef<AbortController | null>(null);
   const roundRef = useRef(0);
@@ -117,7 +117,7 @@ export function useAgentStream() {
       let lineBuffer = "";
 
       try {
-        const res = await fetch("/api/agent/stream", {
+        const res = await fetch(route, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -174,7 +174,7 @@ export function useAgentStream() {
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    []
+    [route]
   );
 
   const stop = useCallback(() => {

@@ -26,7 +26,7 @@ export default function LandingPage() {
             <Button onClick={() => router.push("/gallery")}>
               浏览 Agent 商店<ArrowRight className="ml-1 h-4 w-4" />
             </Button>
-            <Button variant="outline" onClick={() => router.push("/agent/agent-1")}>打开 Playground</Button>
+            <Button variant="outline" onClick={() => router.push("/agent/agent-general")}>打开 Playground</Button>
           </div>
           <div className="mt-3 text-[12px] text-muted-foreground">在线演示，无需注册</div>
         </div>

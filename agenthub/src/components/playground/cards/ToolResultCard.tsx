@@ -58,7 +58,7 @@ export function ToolResultCard(props: ToolResultCardProps) {
         {agentResult.error ? (
           <p className="text-xs text-destructive">{agentResult.error}</p>
         ) : (
-          <pre className="overflow-x-auto rounded bg-muted px-3 py-2 text-xs">
+          <pre className="whitespace-pre-wrap break-words rounded bg-muted px-3 py-2 text-xs max-w-full">
             {JSON.stringify(agentResult.result, null, 2)}
           </pre>
         )}
