@@ -7,6 +7,7 @@ import { Boxes, Github, Twitter, Sun, Moon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const navItems = [
+  { href: "/playground", label: "Playground" },
   { href: "/gallery", label: "商店" },
   { href: "/runs", label: "运行记录" },
   { href: "/pipeline", label: "编排" },
