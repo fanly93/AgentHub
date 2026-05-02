@@ -3,29 +3,32 @@
 import { useRef } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Send, X } from "lucide-react";
+import { Send, Square, X } from "lucide-react";
 
 interface PromptInputProps {
   value: string;
   onChange: (value: string) => void;
   onSubmit: () => void;
+  onStop?: () => void;
+  isLoading?: boolean;
   disabled?: boolean;
 }
 
 const CHAR_WARN_THRESHOLD = 4000;
 
-export function PromptInput({ value, onChange, onSubmit, disabled }: PromptInputProps) {
+export function PromptInput({ value, onChange, onSubmit, onStop, isLoading, disabled }: PromptInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const charCount = value.length;
   const isOverLimit = charCount > CHAR_WARN_THRESHOLD;
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     const isMac = navigator.platform.toUpperCase().includes("MAC");
-    const isSubmit = isMac
-      ? e.metaKey && e.key === "Enter"
-      : e.ctrlKey && e.key === "Enter";
-    if (isSubmit && !disabled && value.trim()) {
-      e.preventDefault();
+    const isHotkey = isMac ? e.metaKey && e.key === "Enter" : e.ctrlKey && e.key === "Enter";
+    if (!isHotkey) return;
+    e.preventDefault();
+    if (isLoading) {
+      onStop?.();
+    } else if (!disabled && value.trim()) {
       onSubmit();
     }
   };
@@ -43,11 +46,11 @@ export function PromptInput({ value, onChange, onSubmit, disabled }: PromptInput
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={handleKeyDown}
-          disabled={disabled}
+          disabled={disabled && !isLoading}
           placeholder="输入 Prompt，按 Cmd+Enter（Mac）/ Ctrl+Enter（Win）发送…"
           className="min-h-[120px] resize-none pr-10"
         />
-        {value && !disabled && (
+        {value && !isLoading && !disabled && (
           <Button
             variant="ghost"
             size="icon"
@@ -70,15 +73,27 @@ export function PromptInput({ value, onChange, onSubmit, disabled }: PromptInput
         <span className={`text-xs ${isOverLimit ? "text-[--warning]" : "text-muted-foreground"}`}>
           {charCount.toLocaleString()} 字
         </span>
-        <Button
-          onClick={onSubmit}
-          disabled={disabled || !value.trim()}
-          size="sm"
-          className="gap-2"
-        >
-          <Send className="h-3.5 w-3.5" />
-          发送
-        </Button>
+        {isLoading ? (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onStop}
+            className="gap-2"
+          >
+            <Square className="h-3.5 w-3.5" />
+            停止
+          </Button>
+        ) : (
+          <Button
+            onClick={onSubmit}
+            disabled={disabled || !value.trim()}
+            size="sm"
+            className="gap-2"
+          >
+            <Send className="h-3.5 w-3.5" />
+            发送
+          </Button>
+        )}
       </div>
     </div>
   );

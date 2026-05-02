@@ -10,6 +10,7 @@ import { CopyJsonButton } from "@/components/playground/CopyJsonButton";
 import { getApiKeyForModel, DEFAULT_MODEL } from "@/lib/models";
 import { saveAgentSession } from "@/lib/playground-session";
 import { useRetryCountdown } from "@/hooks/useRetryCountdown";
+import { useRunRecorder } from "@/hooks/useRunRecorder";
 import type { Agent } from "@/lib/mock-data";
 import type { ModelId } from "@/shared/schemas/playgroundResponse";
 import type { ToolName } from "@/shared/schemas/agentStream";
@@ -29,6 +30,7 @@ export function GeneralAgentPanel({ agent }: GeneralAgentPanelProps) {
   const [error, setError] = useState<(Error & Record<string, unknown>) | null>(null);
 
   const responseRef = useRef<ResponseAreaHandle>(null);
+  const recorder = useRunRecorder(agent.name, agent.id);
 
   const retryAfterMs =
     error && (error as Record<string, unknown>).tier === "retryable"
@@ -50,25 +52,13 @@ export function GeneralAgentPanel({ agent }: GeneralAgentPanelProps) {
       prompt,
       savedAt: Date.now(),
     });
+    recorder.finishAgentRun(state, state.error ? "failed" : "success");
   };
 
   const handleSubmit = () => {
     setError(null);
+    recorder.startRun(selectedModel, prompt);
     responseRef.current?.submit(prompt, selectedModel, apiKey);
-  };
-
-  const sendLabel = isRetryActive
-    ? `${secondsLeft}s 后可重试`
-    : isLoading
-    ? "停止"
-    : "发送";
-
-  const handleSendOrStop = () => {
-    if (isLoading) {
-      responseRef.current?.stop();
-    } else {
-      handleSubmit();
-    }
   };
 
   return (
@@ -106,6 +96,7 @@ export function GeneralAgentPanel({ agent }: GeneralAgentPanelProps) {
           onLoadingChange={setIsLoading}
           onErrorChange={(err) => setError(err)}
           onAgentFinish={handleAgentFinish}
+          onAgentStop={(state) => recorder.interruptAgentRun(state)}
         />
       </div>
 
@@ -121,22 +112,11 @@ export function GeneralAgentPanel({ agent }: GeneralAgentPanelProps) {
         <PromptInput
           value={prompt}
           onChange={setPrompt}
-          onSubmit={handleSendOrStop}
+          onSubmit={handleSubmit}
+          onStop={() => responseRef.current?.stop()}
+          isLoading={isLoading}
           disabled={isRetryActive}
         />
-        {isLoading && (
-          <div className="mt-2 flex justify-end">
-            <button
-              onClick={() => responseRef.current?.stop()}
-              className="text-xs text-muted-foreground underline hover:text-foreground"
-            >
-              停止生成
-            </button>
-          </div>
-        )}
-        <div className="mt-1 flex justify-between text-xs text-muted-foreground">
-          <span>{sendLabel}</span>
-        </div>
       </div>
     </div>
   );

@@ -1,141 +1,123 @@
-"use client";
+"use client"
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { CheckCircle2, XCircle, Loader2 } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
-import { runs, traceNodes } from "@/lib/mock-data";
-
-const StatusIcon = ({ s }: { s: string }) => {
-  if (s === "success") return <CheckCircle2 className="h-4 w-4 text-[hsl(160,70%,50%)]" />;
-  if (s === "failed") return <XCircle className="h-4 w-4 text-[hsl(0,70%,60%)]" />;
-  return <Loader2 className="h-4 w-4 animate-spin text-[hsl(38,90%,55%)]" />;
-};
+import { useEffect, useState } from "react"
+import { Trash2 } from "lucide-react"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import { Button } from "@/components/ui/button"
+import { useRunHistory } from "@/hooks/useRunHistory"
+import { clearAllRuns } from "@/lib/run-history/recorder"
+import { RunList } from "@/components/runs/RunList"
+import { RunDetail } from "@/components/runs/RunDetail"
+import { FilterBar } from "@/components/runs/FilterBar"
+import type { Run } from "@/lib/run-history/types"
+import type { RunFilter } from "@/hooks/useRunHistory"
 
 export default function RunHistoryPage() {
-  const router = useRouter();
-  const [selectedId, setSelectedId] = useState(runs[0].id);
-  const selected = runs.find((r) => r.id === selectedId)!;
-  const total = traceNodes.reduce((m, n) => Math.max(m, n.start + n.duration), 0);
+  const { runs, isLoading, hasMore, loadMore, refresh, updateFilter } = useRunHistory()
+  const [selectedRun, setSelectedRun] = useState<Run | null>(null)
+  const [activeFilter, setActiveFilter] = useState<RunFilter>({})
 
-  if (!runs.length) {
-    return (
-      <div className="mx-auto flex max-w-7xl flex-col items-center justify-center px-6 py-32 text-center">
-        <div className="text-[14px] text-muted-foreground">还没有运行记录，去 Playground 跑一次？</div>
-        <Button className="mt-4" onClick={() => router.push("/agent/agent-1")}>打开 Playground</Button>
-      </div>
-    );
+  useEffect(() => {
+    refresh()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const handleFilterChange = (filter: RunFilter) => {
+    setSelectedRun(null)
+    setActiveFilter(filter)
+    updateFilter(filter)
+  }
+
+  const isFiltered = Object.keys(activeFilter).length > 0
+
+  const handleDeleted = (id: number) => {
+    if (selectedRun?.id === id) setSelectedRun(null)
+    refresh()
+  }
+
+  const handleClearAll = async () => {
+    try {
+      await clearAllRuns()
+      setSelectedRun(null)
+      refresh()
+    } catch (e) {
+      console.error("[runs-page] clearAllRuns failed", e)
+    }
   }
 
   return (
     <div className="mx-auto max-w-7xl px-6 py-8">
-      <h1 style={{ fontSize: 24 }}>运行记录</h1>
-      <p className="mt-1 text-[13px] text-muted-foreground">查看每一次 Agent 的输入、输出与执行过程</p>
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-medium">运行记录</h1>
+          <p className="mt-1 text-sm text-muted-foreground">查看每一次 Agent 的输入、输出与执行过程</p>
+        </div>
+        {runs.length > 0 && (
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2 text-destructive hover:text-destructive">
+                <Trash2 className="h-3.5 w-3.5" />
+                清空全部
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>确认清空所有记录</AlertDialogTitle>
+                <AlertDialogDescription>
+                  此操作将删除所有运行记录及其 Trace 数据，不可撤销。
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>取消</AlertDialogCancel>
+                <AlertDialogAction onClick={handleClearAll}>清空全部</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        )}
+      </div>
 
-      <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-[320px_1fr]">
-        <aside className="rounded-lg border border-border bg-card">
-          <div className="border-b border-border px-4 py-3 text-[13px] text-muted-foreground">最近 12 次</div>
-          <ul className="max-h-[640px] overflow-y-auto lg:max-h-[640px]">
-            {runs.map((r) => (
-              <li key={r.id}>
-                <button
-                  onClick={() => setSelectedId(r.id)}
-                  className={`flex w-full items-start gap-3 border-b border-border px-4 py-3 text-left transition-colors hover:bg-accent/40 ${
-                    selectedId === r.id ? "bg-accent/60" : ""
-                  }`}
-                >
-                  <StatusIcon s={r.status} />
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-[13px]">{r.agent}</div>
-                    <div className="mt-0.5 flex items-center gap-2 text-[11px] text-muted-foreground">
-                      <span>{r.timestamp}</span>
-                      <span>·</span>
-                      <span>{r.duration}</span>
-                    </div>
-                  </div>
-                </button>
-              </li>
-            ))}
-          </ul>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[320px_1fr]">
+        <aside className="overflow-hidden rounded-lg border border-border bg-card">
+          <div className="border-b border-border px-4 py-3 text-[13px] text-muted-foreground">
+            运行历史
+          </div>
+          <div className="border-b border-border px-3 py-2">
+            <FilterBar onFilterChange={handleFilterChange} />
+          </div>
+          <div className="max-h-[calc(100vh-300px)] overflow-y-auto">
+            <RunList
+              runs={runs}
+              isLoading={isLoading}
+              hasMore={hasMore}
+              selectedId={selectedRun?.id ?? null}
+              onSelect={setSelectedRun}
+              onLoadMore={loadMore}
+              onDeleted={handleDeleted}
+              isFiltered={isFiltered}
+            />
+          </div>
         </aside>
 
-        <div className="rounded-lg border border-border bg-card p-6">
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-            {[
-              ["Agent", selected.agent],
-              ["状态", selected.status === "success" ? "成功" : selected.status === "failed" ? "失败" : "运行中"],
-              ["耗时", selected.duration],
-              ["成本", selected.cost],
-            ].map(([k, v]) => (
-              <div key={k}>
-                <div className="text-[12px] text-muted-foreground">{k}</div>
-                <div className="mt-1 text-[14px]">{v}</div>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-6">
-            <div className="mb-3 text-[13px] text-muted-foreground">Trace 瀑布图</div>
-            <div className="space-y-2 rounded-md border border-border bg-background p-4">
-              {traceNodes.map((n) => {
-                const left = (n.start / total) * 100;
-                const width = (n.duration / total) * 100;
-                return (
-                  <div key={n.id} className="flex items-center gap-3">
-                    <div className="w-32 truncate text-[12px] text-muted-foreground" style={{ fontFamily: "var(--font-mono)" }}>{n.name}</div>
-                    <div className="relative flex-1 h-6 rounded bg-muted">
-                      <div
-                        className="absolute top-0 h-6 rounded"
-                        style={{ left: `${left}%`, width: `${width}%`, background: n.color }}
-                        title={`${n.duration}ms`}
-                      />
-                    </div>
-                    <div className="w-14 text-right text-[12px] text-muted-foreground">{n.duration}ms</div>
-                  </div>
-                );
-              })}
-              <div className="mt-2 flex items-center gap-4 pt-2 text-[11px] text-muted-foreground">
-                <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm" style={{ background: "hsl(220, 90%, 60%)" }} />router</span>
-                <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm" style={{ background: "hsl(280, 70%, 60%)" }} />llm</span>
-                <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm" style={{ background: "hsl(160, 70%, 50%)" }} />tool</span>
-                <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm" style={{ background: "hsl(38, 90%, 55%)" }} />output</span>
-              </div>
+        <div className="overflow-y-auto rounded-lg border border-border bg-card p-6">
+          {selectedRun ? (
+            <RunDetail run={selectedRun} />
+          ) : (
+            <div className="flex min-h-[200px] items-center justify-center text-sm text-muted-foreground">
+              选择一条记录查看详情
             </div>
-          </div>
-
-          <Tabs defaultValue="input" className="mt-6">
-            <TabsList>
-              <TabsTrigger value="input">输入</TabsTrigger>
-              <TabsTrigger value="output">输出</TabsTrigger>
-              <TabsTrigger value="meta">元数据</TabsTrigger>
-            </TabsList>
-            <TabsContent value="input">
-              <pre className="rounded-md border border-border bg-background p-4 text-[13px] whitespace-pre-wrap" style={{ fontFamily: "var(--font-mono)" }}>
-{selected.input}
-              </pre>
-            </TabsContent>
-            <TabsContent value="output">
-              <pre className="rounded-md border border-border bg-background p-4 text-[13px] whitespace-pre-wrap" style={{ fontFamily: "var(--font-mono)" }}>
-{selected.output}
-              </pre>
-            </TabsContent>
-            <TabsContent value="meta">
-              <pre className="rounded-md border border-border bg-background p-4 text-[12px]" style={{ fontFamily: "var(--font-mono)" }}>
-{`{
-  "id": "${selected.id}",
-  "model": "gpt-5",
-  "tokens_in": 312,
-  "tokens_out": 528,
-  "latency_ms": 1560,
-  "cache_hit": false,
-  "tools_used": ["retriever.search", "calculator"]
-}`}
-              </pre>
-            </TabsContent>
-          </Tabs>
+          )}
         </div>
       </div>
     </div>
-  );
+  )
 }

@@ -11,6 +11,7 @@ import { restoreSession, saveAgentSession, restoreAgentSession } from "@/lib/pla
 import { getApiKeyForModel } from "@/lib/models";
 import { DEFAULT_MODEL } from "@/lib/models";
 import { useRetryCountdown } from "@/hooks/useRetryCountdown";
+import { useRunRecorder } from "@/hooks/useRunRecorder";
 import type { ModelId, PlaygroundError } from "@/shared/schemas/playgroundResponse";
 import type { ToolName } from "@/shared/schemas/agentStream";
 import type { AgentExecutionState } from "@/hooks/useAgentStream";
@@ -32,6 +33,7 @@ export default function PlaygroundPage() {
   const [error, setError] = useState<(Error & Record<string, unknown>) | null>(null);
 
   const responseRef = useRef<ResponseAreaHandle>(null);
+  const recorder = useRunRecorder("Playground");
 
   const retryAfterMs =
     error && (error as Record<string, unknown>).tier === "retryable"
@@ -67,11 +69,13 @@ export default function PlaygroundPage() {
       prompt,
       savedAt: Date.now(),
     });
+    recorder.finishAgentRun(state, state.error ? "failed" : "success");
   };
 
   const handleSubmit = () => {
     const apiKey = getApiKeyForModel(selectedModel) ?? "";
     setError(null);
+    recorder.startRun(selectedModel, prompt);
     responseRef.current?.submit(prompt, selectedModel, apiKey);
   };
 
@@ -128,7 +132,9 @@ export default function PlaygroundPage() {
           value={prompt}
           onChange={setPrompt}
           onSubmit={handleSubmit}
-          disabled={isLoading || isRetryActive}
+          onStop={() => responseRef.current?.stop()}
+          isLoading={isLoading}
+          disabled={isRetryActive}
         />
       </div>
 
@@ -145,6 +151,9 @@ export default function PlaygroundPage() {
           onLoadingChange={setIsLoading}
           onErrorChange={(err) => setError(err)}
           onAgentFinish={handleAgentFinish}
+          onAgentStop={(state) => recorder.interruptAgentRun(state)}
+          onStructuredFinish={(obj) => recorder.finishStructuredRun(obj, "success")}
+          onStructuredStop={(obj) => recorder.interruptStructuredRun(obj)}
         />
       </div>
     </div>

@@ -11,6 +11,7 @@ import { useStructuredStream } from "@/hooks/useStructuredStream";
 import { useRetryCountdown } from "@/hooks/useRetryCountdown";
 import { getApiKeyForModel, DEFAULT_MODEL } from "@/lib/models";
 import { saveSession } from "@/lib/playground-session";
+import { useRunRecorder } from "@/hooks/useRunRecorder";
 import { CATEGORY_PROMPTS } from "@/lib/mock-data";
 import type { Agent } from "@/lib/mock-data";
 import type { PlaygroundResponse } from "@/shared/schemas/playgroundResponse";
@@ -34,12 +35,15 @@ export function SimpleAgentPanel({ agent }: SimpleAgentPanelProps) {
   );
   const [prompt, setPrompt] = useState("");
 
+  const recorder = useRunRecorder(agent.name, agent.id);
+
   const { object, isLoading, error, submit, stop } = useStructuredStream<PlaygroundResponse, SimpleInput>({
     api: "/api/playground/stream",
     onFinish: ({ object: finishedObj }) => {
       if (finishedObj?.answer) {
         saveSession(finishedObj as PlaygroundResponse, selectedModel, prompt);
       }
+      recorder.finishStructuredRun(finishedObj as PlaygroundResponse | undefined, "success");
     },
   });
 
@@ -57,6 +61,7 @@ export function SimpleAgentPanel({ agent }: SimpleAgentPanelProps) {
 
   const handleSubmit = () => {
     if (!prompt.trim() || isLoading) return;
+    recorder.startRun(selectedModel, prompt);
     submit(
       { model: selectedModel, prompt, agentSystemPrompt },
       { "X-Provider-Api-Key": apiKey }
@@ -141,7 +146,7 @@ export function SimpleAgentPanel({ agent }: SimpleAgentPanelProps) {
             {charCount.toLocaleString()} 字
           </span>
           {isLoading ? (
-            <Button variant="outline" size="sm" onClick={stop} className="gap-2">
+            <Button variant="outline" size="sm" onClick={() => { recorder.interruptStructuredRun(object); stop(); }} className="gap-2">
               <Square className="h-3.5 w-3.5" />
               停止
             </Button>

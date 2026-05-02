@@ -23,10 +23,13 @@ interface ResponseAreaProps {
   onLoadingChange?: (isLoading: boolean) => void;
   onErrorChange?: (error: (Error & Record<string, unknown>) | null) => void;
   onAgentFinish?: (state: AgentExecutionState) => void;
+  onAgentStop?: (state: AgentExecutionState) => void;
+  onStructuredStop?: (object: DeepPartial<PlaygroundResponse> | undefined) => void;
+  onStructuredFinish?: (object: PlaygroundResponse | undefined) => void;
 }
 
 export const ResponseArea = forwardRef<ResponseAreaHandle, ResponseAreaProps>(
-  function ResponseArea({ selectedTools, onLoadingChange, onErrorChange, onAgentFinish }, ref) {
+  function ResponseArea({ selectedTools, onLoadingChange, onErrorChange, onAgentFinish, onAgentStop, onStructuredStop, onStructuredFinish }, ref) {
     // ── No-tool mode (existing) ───────────────────────────────────────────
     const { object, isLoading: isLegacyLoading, error: legacyError, submit: legacySubmit, stop: legacyStop } =
       useStructuredStream<PlaygroundResponse>({
@@ -38,7 +41,12 @@ export const ResponseArea = forwardRef<ResponseAreaHandle, ResponseAreaProps>(
             if (parsed.success) {
               const model = parsed.data.metadata?.model ?? "deepseek-v4-flash";
               saveSession(parsed.data, model, "");
+              onStructuredFinish?.(parsed.data);
+            } else {
+              onStructuredFinish?.(undefined);
             }
+          } else {
+            onStructuredFinish?.(undefined);
           }
         },
         onError: (err) => {
@@ -71,12 +79,14 @@ export const ResponseArea = forwardRef<ResponseAreaHandle, ResponseAreaProps>(
 
     const handleStop = useCallback(() => {
       if (isAgentMode) {
+        onAgentStop?.(agentState);
         agentStop();
         onLoadingChange?.(false);
       } else {
+        onStructuredStop?.(object);
         legacyStop();
       }
-    }, [isAgentMode, agentStop, legacyStop, onLoadingChange]);
+    }, [isAgentMode, agentStop, legacyStop, onLoadingChange, onAgentStop, onStructuredStop, agentState, object]);
 
     useImperativeHandle(ref, () => ({
       submit: handleSubmit,

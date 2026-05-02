@@ -14,6 +14,7 @@ import { useAgentStream } from "@/hooks/useAgentStream";
 import { useRetryCountdown } from "@/hooks/useRetryCountdown";
 import { getApiKeyForModel, DEFAULT_MODEL } from "@/lib/models";
 import { saveAgentSession } from "@/lib/playground-session";
+import { useRunRecorder } from "@/hooks/useRunRecorder";
 import type { Agent } from "@/lib/mock-data";
 import type { ModelId } from "@/shared/schemas/playgroundResponse";
 
@@ -33,6 +34,7 @@ export function DeepResearchPanel({ agent }: DeepResearchPanelProps) {
   const { thinking, toolCalls, toolResults, pendingCallIds, answer, usage, isLoading, error } = state;
 
   const apiKey = getApiKeyForModel(selectedModel) ?? "";
+  const recorder = useRunRecorder(agent.name, agent.id);
 
   const retryAfterMs =
     error?.code === "RATE_LIMITED" ? undefined : undefined;
@@ -44,6 +46,7 @@ export function DeepResearchPanel({ agent }: DeepResearchPanelProps) {
 
   const handleSubmit = () => {
     if (!prompt.trim() || isLoading) return;
+    recorder.startRun(selectedModel, prompt);
     submit(prompt, selectedModel, apiKey, [], (finishedState) => {
       saveAgentSession({
         thinking: finishedState.thinking || undefined,
@@ -56,6 +59,7 @@ export function DeepResearchPanel({ agent }: DeepResearchPanelProps) {
         prompt,
         savedAt: Date.now(),
       });
+      recorder.finishAgentRun(finishedState, finishedState.error ? "failed" : "success");
     });
   };
 
@@ -161,7 +165,7 @@ export function DeepResearchPanel({ agent }: DeepResearchPanelProps) {
             {charCount.toLocaleString()} 字
           </span>
           {isLoading ? (
-            <Button variant="outline" size="sm" onClick={stop} className="gap-2">
+            <Button variant="outline" size="sm" onClick={() => { recorder.interruptAgentRun(state); stop(); }} className="gap-2">
               <Square className="h-3.5 w-3.5" />
               停止研究
             </Button>
