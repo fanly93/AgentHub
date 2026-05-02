@@ -11,6 +11,13 @@ import type { ModelId } from "@/shared/schemas/playgroundResponse";
 
 // ── State ──────────────────────────────────────────────────────────────────
 
+export interface SpanTimestamps {
+  thinkingStartAt: number | null;
+  answerStartAt: number | null;
+  toolCallAt: Record<string, number>;
+  toolResultAt: Record<string, number>;
+}
+
 export interface AgentExecutionState {
   thinking: string;
   toolCalls: AgentToolCall[];
@@ -24,7 +31,15 @@ export interface AgentExecutionState {
   } | null;
   isLoading: boolean;
   error: { message: string; code: string } | null;
+  spanTimestamps: SpanTimestamps;
 }
+
+const emptyTimestamps = (): SpanTimestamps => ({
+  thinkingStartAt: null,
+  answerStartAt: null,
+  toolCallAt: {},
+  toolResultAt: {},
+});
 
 const initialState: AgentExecutionState = {
   thinking: "",
@@ -35,6 +50,7 @@ const initialState: AgentExecutionState = {
   usage: null,
   isLoading: false,
   error: null,
+  spanTimestamps: emptyTimestamps(),
 };
 
 // ── Reducer ────────────────────────────────────────────────────────────────
@@ -114,6 +130,15 @@ export function useAgentStream(route = "/api/agent/stream") {
 
       dispatch({ type: "start" });
 
+      // 本地积累流数据，独立于 React state 批处理，确保 onFinish 拿到完整数据
+      let localThinking = "";
+      const localToolCalls: AgentToolCall[] = [];
+      const localToolResults: AgentToolResult[] = [];
+      let localAnswer = "";
+      let localUsage: AgentExecutionState["usage"] = null;
+      let localError: { message: string; code: string } | null = null;
+      const localTimestamps: SpanTimestamps = emptyTimestamps();
+
       let lineBuffer = "";
 
       try {
@@ -140,7 +165,7 @@ export function useAgentStream(route = "/api/agent/stream") {
         }
 
         const decoder = new TextDecoder();
-        let finalState: AgentExecutionState | null = null;
+        let hasDone = false;
 
         while (true) {
           const { done, value } = await reader.read();
@@ -156,8 +181,32 @@ export function useAgentStream(route = "/api/agent/stream") {
             try {
               const event = JSON.parse(trimmed) as AgentStreamEvent;
               dispatchEvent(event, dispatch, roundRef);
-              if (event.type === "done") {
-                finalState = { ...state };
+              // 同步积累到本地变量，不依赖 React state 批处理时机
+              const now = Date.now();
+              switch (event.type) {
+                case "thinking-delta":
+                  localThinking += event.delta;
+                  if (localTimestamps.thinkingStartAt === null) localTimestamps.thinkingStartAt = now;
+                  break;
+                case "tool-call":
+                  localToolCalls.push({ callId: event.callId, name: event.name, arguments: event.arguments, round: roundRef.current });
+                  localTimestamps.toolCallAt[event.callId] = now;
+                  break;
+                case "tool-result":
+                  localToolResults.push({ callId: event.callId, name: event.name, result: event.result, error: event.error });
+                  localTimestamps.toolResultAt[event.callId] = now;
+                  break;
+                case "answer-delta":
+                  localAnswer += event.delta;
+                  if (localTimestamps.answerStartAt === null) localTimestamps.answerStartAt = now;
+                  break;
+                case "done":
+                  localUsage = event.usage ?? null;
+                  hasDone = true;
+                  break;
+                case "error":
+                  localError = { message: event.message, code: event.code };
+                  break;
               }
             } catch {
               // 跳过无法解析的行
@@ -165,7 +214,18 @@ export function useAgentStream(route = "/api/agent/stream") {
           }
         }
 
-        if (finalState && onFinish) {
+        if (hasDone && onFinish) {
+          const finalState: AgentExecutionState = {
+            thinking: localThinking,
+            toolCalls: localToolCalls,
+            toolResults: localToolResults,
+            pendingCallIds: new Set(),
+            answer: localAnswer,
+            usage: localUsage,
+            isLoading: false,
+            error: localError,
+            spanTimestamps: localTimestamps,
+          };
           onFinish(finalState);
         }
       } catch (err) {
@@ -173,7 +233,6 @@ export function useAgentStream(route = "/api/agent/stream") {
         dispatch({ type: "error", message: "网络连接中断，请重试", code: "STREAM_INTERRUPTED" });
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [route]
   );
 
